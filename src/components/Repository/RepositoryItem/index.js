@@ -2,6 +2,7 @@ import React from 'react';
 import gql from 'graphql-tag';
 import { Mutation } from 'react-apollo';
 
+import REPOSITORY_FRAGMENT from '../fragments';
 import Link from '../../Link';
 import Button from '../../Button';
 
@@ -29,6 +30,66 @@ const UN_STAR_REPO = gql`
   }
 `;
 
+const updateAddStar = (
+  client,
+  {
+    data: {
+      addStar: {
+        starrable: { id },
+      },
+    },
+  },
+) => {
+  const repository = client.readFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT,
+  });
+
+  const totalCount = repository.stargazers.totalCount + 1;
+
+  client.writeFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT,
+    data: {
+      ...repository,
+      stargazers: {
+        ...repository.stargazers,
+        totalCount,
+      },
+    },
+  });
+};
+
+const updateRemoveStar = (
+  client,
+  {
+    data: {
+      removeStar: {
+        starrable: { id },
+      },
+    },
+  },
+) => {
+  const repository = client.readFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT,
+  });
+
+  const totalCount = repository.stargazers.totalCount - 1;
+
+  client.writeFragment({
+    id: `Repository:${id}`,
+    fragment: REPOSITORY_FRAGMENT,
+    data: {
+      ...repository,
+      stargazers: {
+        ...repository.stargazers,
+        totalCount,
+      },
+    },
+  });
+};
+
 const RepositoryItem = ({
   id,
   name,
@@ -49,7 +110,11 @@ const RepositoryItem = ({
 
       <div>
         {!viewerHasStarred ? (
-          <Mutation mutation={STAR_REPO} variables={{ id }}>
+          <Mutation
+            mutation={STAR_REPO}
+            variables={{ id }}
+            update={updateAddStar}
+          >
             {(addStar, { data, loading, error }) => (
               <Button
                 className={`RepositoryItem-title-action`}
@@ -60,7 +125,11 @@ const RepositoryItem = ({
             )}
           </Mutation>
         ) : (
-          <Mutation mutation={UN_STAR_REPO} variables={{ id }}>
+          <Mutation
+            mutation={UN_STAR_REPO}
+            variables={{ id }}
+            update={updateRemoveStar}
+          >
             {(removeStar, { data, loading, error }) => (
               <Button
                 className={`RepositoryItem-title-action`}
