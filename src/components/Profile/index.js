@@ -7,13 +7,21 @@ import RepositoryList, { REPOSITORY_FRAGMENT } from '../Repository';
 import ErrorMessage from '../Error';
 
 const GET_REPOS_OF_CURRENT_USER = gql`
-  {
+  query($cursor: String) {
     viewer {
-      repositories(first: 5, orderBy: { direction: DESC, field: STARGAZERS }) {
+      repositories(
+        first: 5
+        orderBy: { direction: DESC, field: STARGAZERS }
+        after: $cursor
+      ) {
         edges {
           node {
             ...repository
           }
+        }
+        pageInfo {
+          endCursor
+          hasNextPage
         }
       }
     }
@@ -23,19 +31,25 @@ const GET_REPOS_OF_CURRENT_USER = gql`
 `;
 
 const Profile = () => (
-  <Query query={GET_REPOS_OF_CURRENT_USER}>
-    {({ data, loading, error }) => {
+  <Query query={GET_REPOS_OF_CURRENT_USER} notifyOnNetworkStatusChange>
+    {({ data, loading, error, fetchMore }) => {
       if (error) {
         return <ErrorMessage error={error} />;
       }
 
       const { viewer } = data;
 
-      if (loading || !viewer) {
+      if (loading && !viewer) {
         return <Loading />;
       }
 
-      return <RepositoryList repositories={viewer.repositories} />;
+      return (
+        <RepositoryList
+          loading={loading}
+          fetchMore={fetchMore}
+          repositories={viewer.repositories}
+        />
+      );
     }}
   </Query>
 );
