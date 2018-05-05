@@ -1,12 +1,12 @@
 import React, { Fragment } from 'react';
-import { Query } from 'react-apollo';
+import { Query, ApolloConsumer } from 'react-apollo';
 import gql from 'graphql-tag';
 import { withState } from 'recompose';
 
 import IssueItem from '../IssueItem';
 import Loading from '../../Loading';
 import ErrorMessage from '../../Error';
-import { ButtonUnobtrusive } from '../../Button';
+import Button, { ButtonUnobtrusive } from '../../Button';
 import FetchMore from '../../FetchMore';
 
 import './style.css';
@@ -87,11 +87,12 @@ const Issues = ({
   onChangeIssueState,
 }) => (
   <div className="Issues">
-    <ButtonUnobtrusive
-      onClick={() => onChangeIssueState(TRANSITION_STATE[issueState])}
-    >
-      {TRANSITION_LABELS[issueState]}
-    </ButtonUnobtrusive>
+    <IssueFilter
+      repositoryName={repositoryName}
+      repositoryOwner={repositoryOwner}
+      issueState={issueState}
+      onChangeIssueState={onChangeIssueState}
+    />
 
     {isShow(issueState) && (
       <Query
@@ -144,6 +145,49 @@ const IssueList = ({ issues }) => (
   <div className="IssueList">
     {issues.edges.map(({ node }) => <IssueItem key={node.id} issue={node} />)}
   </div>
+);
+
+const prefetchIssues = (
+  client,
+  repositoryOwner,
+  repositoryName,
+  issueState,
+) => {
+  const nextIssueState = TRANSITION_STATE[issueState];
+
+  if (isShow(nextIssueState)) {
+    client.query({
+      query: GET_ISSUES_OF_REPO,
+      variables: {
+        repositoryOwner,
+        repositoryName,
+        issueState: nextIssueState,
+      },
+    });
+  }
+};
+
+const IssueFilter = ({
+  issueState,
+  onChangeIssueState,
+  repositoryName,
+  repositoryOwner,
+}) => (
+  <ApolloConsumer>
+    {client => (
+      <ButtonUnobtrusive
+        onClick={() => onChangeIssueState(TRANSITION_STATE[issueState])}
+        onMouseOver={prefetchIssues(
+          client,
+          repositoryOwner,
+          repositoryName,
+          issueState,
+        )}
+      >
+        {TRANSITION_LABELS[issueState]}
+      </ButtonUnobtrusive>
+    )}
+  </ApolloConsumer>
 );
 
 export default withState('issueState', 'onChangeIssueState', ISSUE_STATES.NONE)(
