@@ -1,12 +1,12 @@
 import React, { Fragment } from 'react';
 import { Query, ApolloConsumer } from 'react-apollo';
-import gql from 'graphql-tag';
 import { withState } from 'recompose';
 
+import { GET_ISSUES_OF_REPO } from './queries';
 import IssueItem from '../IssueItem';
 import Loading from '../../Loading';
 import ErrorMessage from '../../Error';
-import Button, { ButtonUnobtrusive } from '../../Button';
+import { ButtonUnobtrusive } from '../../Button';
 import FetchMore from '../../FetchMore';
 
 import './style.css';
@@ -28,34 +28,6 @@ const TRANSITION_STATE = {
   [ISSUE_STATES.OPEN]: ISSUE_STATES.CLOSED,
   [ISSUE_STATES.CLOSED]: ISSUE_STATES.NONE,
 };
-
-const GET_ISSUES_OF_REPO = gql`
-  query(
-    $repositoryName: String!
-    $repositoryOwner: String!
-    $issueState: IssueState!
-    $cursor: String
-  ) {
-    repository(name: $repositoryName, owner: $repositoryOwner) {
-      issues(first: 5, states: [$issueState], after: $cursor) {
-        edges {
-          node {
-            id
-            number
-            state
-            title
-            url
-            bodyHTML
-          }
-        }
-        pageInfo {
-          endCursor
-          hasNextPage
-        }
-      }
-    }
-  }
-`;
 
 const updateQuery = (previousResult, { fetchMoreResult }) => {
   if (!fetchMoreResult) {
@@ -120,20 +92,14 @@ const Issues = ({
           }
 
           return (
-            <Fragment>
-              <IssueList issues={repository.issues} />;
-              <FetchMore
-                loading={loading}
-                hasNextPage={repository.issues.pageInfo.hasNextPage}
-                variables={{
-                  cursor: repository.issues.pageInfo.endCursor,
-                }}
-                updateQuery={updateQuery}
-                fetchMore={fetchMore}
-              >
-                Issues
-              </FetchMore>
-            </Fragment>
+            <IssueList
+              issues={repository.issues}
+              loading={loading}
+              repositoryOwner={repositoryOwner}
+              repositoryName={repositoryName}
+              issueState={issueState}
+              fetchMore={fetchMore}
+            />
           );
         }}
       </Query>
@@ -141,9 +107,37 @@ const Issues = ({
   </div>
 );
 
-const IssueList = ({ issues }) => (
+const IssueList = ({
+  issues,
+  repositoryOwner,
+  repositoryName,
+  loading,
+  fetchMore,
+  issueState,
+}) => (
   <div className="IssueList">
-    {issues.edges.map(({ node }) => <IssueItem key={node.id} issue={node} />)}
+    {issues.edges.map(({ node }) => (
+      <IssueItem
+        key={node.id}
+        issue={node}
+        repositoryOwner={repositoryOwner}
+        repositoryName={repositoryName}
+      />
+    ))}
+    <FetchMore
+      loading={loading}
+      hasNextPage={issues.pageInfo.hasNextPage}
+      variables={{
+        cursor: issues.pageInfo.endCursor,
+        repositoryOwner,
+        repositoryName,
+        issueState,
+      }}
+      updateQuery={updateQuery}
+      fetchMore={fetchMore}
+    >
+      Issues
+    </FetchMore>
   </div>
 );
 
